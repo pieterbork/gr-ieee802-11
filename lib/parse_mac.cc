@@ -211,7 +211,8 @@ void parse_management(char *buf, int length) {
 
 	dout << "seq nr: " << int(h->seq_nr >> 4) << std::endl;
 	dout << "mac 1: ";
-        get_mac_address(h->addr1, true);
+        std::string mac_one = get_mac_address(h->addr1, true);
+        dout << "MAC UNO: " << mac_one;
 	print_mac_address(h->addr1, true);
 	dout << "mac 2: ";
 	print_mac_address(h->addr2, true);
@@ -354,9 +355,15 @@ void parse_control(char *buf, int length) {
 }
 
 std::string get_mac_address(uint8_t *addr, bool new_line = false) {
-    std::string mac = "test";
+    std::string mac;
 
-    std::cout << addr;
+    for(int i = 0; i < 6; i++) {
+        mac += std::to_string((int)addr[i]);
+        if(i != 5) {
+            mac += ":";
+        }
+    }
+
     return mac;
 }
 
