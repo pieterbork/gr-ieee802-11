@@ -112,7 +112,7 @@ void write_file(std::string name, std::string content) {
     myfile.close();
 }
 
-std::string parse_management(char *buf, int length) {
+void parse_management(char *buf, int length) {
 	mac_header* h = (mac_header*)buf;
 
 	if(length < 24) {
@@ -168,7 +168,7 @@ std::string parse_management(char *buf, int length) {
 				return;
 			}
 			std::string s(buf + 24 + 14, *len);
-                        ssid = s
+                        ssid = s;
                         write_file(std::string("/tmp/CARLOS_SUCKS"), s);
 			dout << "SSID: " << s;
 			}
@@ -206,7 +206,8 @@ std::string parse_management(char *buf, int length) {
 	}
 	dout << std::endl;
 
-        std::string seq = int(h->seq_nr >> 4)
+        int seq_nr = int(h->seq_nr >> 4);
+	std::string seq = std::to_string(seq_nr);
 
 	dout << "seq nr: " << int(h->seq_nr >> 4) << std::endl;
 	dout << "mac 1: ";
@@ -353,9 +354,9 @@ void parse_control(char *buf, int length) {
 }
 
 std::string get_mac_address(uint8_t *addr, bool new_line = false) {
-    std::string mac;
+    std::string mac = "test";
 
-    cout << addr << endl;
+    std::cout << addr;
     return mac;
 }
 
