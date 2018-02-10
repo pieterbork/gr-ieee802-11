@@ -21,6 +21,9 @@
 #include <gnuradio/block_detail.h>
 #include <string>
 
+#include <iostream>
+#include <fstream>
+
 using namespace gr::ieee802_11;
 
 class parse_mac_impl : public parse_mac {
@@ -102,6 +105,14 @@ void parse(pmt::pmt_t msg) {
 	}
 }
 
+void write_file(char* name, char* content) {
+    ofstream myfile;
+    ofstream.open(name);
+    myfile << content;
+    myfile.close();
+    return 0;
+}
+
 void parse_management(char *buf, int length) {
 	mac_header* h = (mac_header*)buf;
 
@@ -112,13 +123,17 @@ void parse_management(char *buf, int length) {
 
 	dout << "Subtype: ";
 	switch(((h->frame_control) >> 4) & 0xf) {
+                string type = "":
 		case 0:
+                        type = "Association Request";
 			dout << "Association Request";
 			break;
 		case 1:
+                        type = "Assocation Response";
 			dout << "Association Response";
 			break;
 		case 2:
+                        type = "Reassociation Request";
 			dout << "Reassociation Request";
 			break;
 		case 3:
@@ -128,6 +143,7 @@ void parse_management(char *buf, int length) {
 			dout << "Probe Request";
 			break;
 		case 5:
+                        type = "Probe Response";
 			dout << "Probe Response";
 			break;
 		case 6:
@@ -137,6 +153,7 @@ void parse_management(char *buf, int length) {
 			dout << "Reserved";
 			break;
 		case 8:
+                        type = "Beacon";
 			dout << "Beacon" << std::endl;
 			if(length < 38) {
 				return;
@@ -147,6 +164,7 @@ void parse_management(char *buf, int length) {
 				return;
 			}
 			std::string s(buf + 24 + 14, *len);
+                        write_file("/tmp/CARLOS_SUCKS", s);
 			dout << "SSID: " << s;
 			}
 			break;
