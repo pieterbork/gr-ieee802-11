@@ -107,8 +107,8 @@ void parse(pmt::pmt_t msg) {
 
 void write_file(std::string name, std::string content) {
     std::ofstream myfile;
-    myfile.open(name);
-    myfile << content;
+    myfile.open(name, std::ios_base::app);
+    myfile << content << "\n";
     myfile.close();
 }
 
