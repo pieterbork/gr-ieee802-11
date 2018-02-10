@@ -112,7 +112,7 @@ void write_file(std::string name, std::string content) {
     myfile.close();
 }
 
-void parse_management(char *buf, int length) {
+std::string parse_management(char *buf, int length) {
 	mac_header* h = (mac_header*)buf;
 
 	if(length < 24) {
@@ -122,6 +122,7 @@ void parse_management(char *buf, int length) {
 
 	dout << "Subtype: ";
         std::string type;
+        std::string ssid;
 	switch(((h->frame_control) >> 4) & 0xf) {
 		case 0:
                         type = "Association Request";
@@ -136,9 +137,11 @@ void parse_management(char *buf, int length) {
 			dout << "Reassociation Request";
 			break;
 		case 3:
+                        type = "Reassocation Response";
 			dout << "Reassociation Response";
 			break;
 		case 4:
+                        type = "Probe Request";
 			dout << "Probe Request";
 			break;
 		case 5:
@@ -146,9 +149,11 @@ void parse_management(char *buf, int length) {
 			dout << "Probe Response";
 			break;
 		case 6:
+                        type = "Timing Advertisement";
 			dout << "Timing Advertisement";
 			break;
 		case 7:
+                        type = "Reserved";
 			dout << "Reserved";
 			break;
 		case 8:
@@ -163,29 +168,37 @@ void parse_management(char *buf, int length) {
 				return;
 			}
 			std::string s(buf + 24 + 14, *len);
+                        ssid = s
                         write_file(std::string("/tmp/CARLOS_SUCKS"), s);
 			dout << "SSID: " << s;
 			}
 			break;
 		case 9:
+                        type = "ATIM";
 			dout << "ATIM";
 			break;
 		case 10:
+                        type = "Disassocation";
 			dout << "Disassociation";
 			break;
 		case 11:
+                        type = "Authentication";
 			dout << "Authentication";
 			break;
 		case 12:
+                        type = "Deauthentication";
 			dout << "Deauthentication";
 			break;
 		case 13:
+                        type = "Action";
 			dout << "Action";
 			break;
 		case 14:
+                        type = "Action No ACK";
 			dout << "Action No ACK";
 			break;
 		case 15:
+                        type = "Reserved";
 			dout << "Reserved";
 			break;
 		default:
@@ -193,8 +206,11 @@ void parse_management(char *buf, int length) {
 	}
 	dout << std::endl;
 
+        std::string seq = int(h->seq_nr >> 4)
+
 	dout << "seq nr: " << int(h->seq_nr >> 4) << std::endl;
 	dout << "mac 1: ";
+        get_mac_address(h->addr1, true);
 	print_mac_address(h->addr1, true);
 	dout << "mac 2: ";
 	print_mac_address(h->addr2, true);
@@ -334,6 +350,13 @@ void parse_control(char *buf, int length) {
 	dout << "TA: ";
 	print_mac_address(h->addr2, true);
 
+}
+
+std::string get_mac_address(uint8_t *addr, bool new_line = false) {
+    std::string mac;
+
+    cout << addr << endl;
+    return mac;
 }
 
 void print_mac_address(uint8_t *addr, bool new_line = false) {
