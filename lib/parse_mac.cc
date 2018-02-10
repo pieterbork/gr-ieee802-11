@@ -69,15 +69,24 @@ void parse(pmt::pmt_t msg) {
 		dout << "frame too short to parse (<20)" << std::endl;
 		return;
 	}
+	std::string out_frame;
 	#define HEX(a) std::hex << std::setfill('0') << std::setw(2) << int(a) << std::dec
-	dout << "duration: " << HEX(h->duration >> 8) << " " << HEX(h->duration  & 0xff) << std::endl;
-	dout << "frame control: " << HEX(h->frame_control >> 8) << " " << HEX(h->frame_control & 0xff);
+
+	std::stringstream durationstream;
+	durationstream << HEX(h->duration >> 8) << " " << HEX(h->duration  & 0xff);
+
+	out_frame += "Duration: " + durationstream.str();
+	
+	std::stringstream framestream;
+	framestream << HEX(h->frame_control >> 8) << " " << HEX(h->frame_control & 0xff);
+
+	out_frame += ", Frame Control: " + framestream.str() + ", ";
 
         switch((h->frame_control >> 2) & 3) {
 
 		case 0:
 			dout << " (MANAGEMENT)" << std::endl;
-			parse_management((char*)h, data_len);
+			out_frame += parse_management((char*)h, data_len);
 			break;
 		case 1:
 			dout << " (CONTROL)" << std::endl;
@@ -93,6 +102,8 @@ void parse(pmt::pmt_t msg) {
 			dout << " (unknown)" << std::endl;
 			break;
 	}
+
+        write_file(std::string("/tmp/CARLOS_SUCKS"), out_frame);
 
 	char *frame = (char*)pmt::blob_data(msg);
 
@@ -112,12 +123,12 @@ void write_file(std::string name, std::string content) {
     myfile.close();
 }
 
-void parse_management(char *buf, int length) {
+std::string parse_management(char *buf, int length) {
 	mac_header* h = (mac_header*)buf;
 
 	if(length < 24) {
 		dout << "too short for a management frame" << std::endl;
-		return;
+		return "error";
 	}
 
 	dout << "Subtype: ";
@@ -160,16 +171,15 @@ void parse_management(char *buf, int length) {
                         type = "Beacon";
 			dout << "Beacon" << std::endl;
 			if(length < 38) {
-				return;
+				return "short beacon";
 			}
 			{
 			uint8_t* len = (uint8_t*) (buf + 24 + 13);
 			if(length < 38 + *len) {
-				return;
+				return "long beacon";
 			}
 			std::string s(buf + 24 + 14, *len);
                         ssid = s;
-                        write_file(std::string("/tmp/CARLOS_SUCKS"), s);
 			dout << "SSID: " << s;
 			}
 			break;
@@ -210,14 +220,19 @@ void parse_management(char *buf, int length) {
 	std::string seq = std::to_string(seq_nr);
 
 	dout << "seq nr: " << int(h->seq_nr >> 4) << std::endl;
-	dout << "mac 1: ";
         std::string mac_one = get_mac_address(h->addr1, true);
-        dout << "MAC UNO: " << mac_one;
+        std::string mac_two = get_mac_address(h->addr2, true);
+        std::string mac_thr = get_mac_address(h->addr3, true);
+	std::string ret_str = "Subtype: " + type + ", seq nr: " + seq + ", mac 1: " + mac_one + ", mac 2: " + mac_two + ", mac 3: " + mac_thr;
+	return ret_str;
+
+
+/*	dout << "mac 1: ";
 	print_mac_address(h->addr1, true);
 	dout << "mac 2: ";
 	print_mac_address(h->addr2, true);
 	dout << "mac 3: ";
-	print_mac_address(h->addr3, true);
+	print_mac_address(h->addr3, true);*/
 
 }
 
@@ -355,16 +370,17 @@ void parse_control(char *buf, int length) {
 }
 
 std::string get_mac_address(uint8_t *addr, bool new_line = false) {
-    std::string mac;
+    std::stringstream macstream;
 
     for(int i = 0; i < 6; i++) {
-        mac += std::to_string((int)addr[i]);
+    	macstream << std::hex << (int)addr[i];
         if(i != 5) {
-            mac += ":";
+    	    macstream << ":";
         }
     }
 
-    return mac;
+
+    return macstream.str();
 }
 
 void print_mac_address(uint8_t *addr, bool new_line = false) {
