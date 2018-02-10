@@ -106,8 +106,8 @@ void parse(pmt::pmt_t msg) {
 }
 
 void write_file(char* name, char* content) {
-    ofstream myfile;
-    ofstream.open(name);
+    std::ofstream myfile;
+    std::ofstream.open(name);
     myfile << content;
     myfile.close();
     return 0;
@@ -123,7 +123,7 @@ void parse_management(char *buf, int length) {
 
 	dout << "Subtype: ";
 	switch(((h->frame_control) >> 4) & 0xf) {
-                string type = "":
+#                std::string type = "":
 		case 0:
                         type = "Association Request";
 			dout << "Association Request";
