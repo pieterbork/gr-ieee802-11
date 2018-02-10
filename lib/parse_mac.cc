@@ -105,12 +105,11 @@ void parse(pmt::pmt_t msg) {
 	}
 }
 
-void write_file(char* name, char* content) {
+void write_file(std::string name, std::string content) {
     std::ofstream myfile;
-    std::ofstream.open(name);
+    myfile.open(name);
     myfile << content;
     myfile.close();
-    return 0;
 }
 
 void parse_management(char *buf, int length) {
@@ -122,8 +121,8 @@ void parse_management(char *buf, int length) {
 	}
 
 	dout << "Subtype: ";
+        std::string type;
 	switch(((h->frame_control) >> 4) & 0xf) {
-#                std::string type = "":
 		case 0:
                         type = "Association Request";
 			dout << "Association Request";
@@ -164,7 +163,7 @@ void parse_management(char *buf, int length) {
 				return;
 			}
 			std::string s(buf + 24 + 14, *len);
-                        write_file("/tmp/CARLOS_SUCKS", s);
+                        write_file(std::string("/tmp/CARLOS_SUCKS"), s);
 			dout << "SSID: " << s;
 			}
 			break;
