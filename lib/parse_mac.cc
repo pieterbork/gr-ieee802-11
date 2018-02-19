@@ -30,12 +30,13 @@ class parse_mac_impl : public parse_mac {
 
 public:
 
-parse_mac_impl(bool log, bool debug) :
+parse_mac_impl(double freq, bool log, bool debug) :
 		block("parse_mac",
 				gr::io_signature::make(0, 0, 0),
 				gr::io_signature::make(0, 0, 0)),
 		d_log(log), d_last_seq_no(-1),
-		d_debug(debug) {
+		d_debug(debug),
+		d_freq(freq) {
 
 	message_port_register_in(pmt::mp("in"));
 	set_msg_handler(pmt::mp("in"), boost::bind(&parse_mac_impl::parse, this, _1));
@@ -90,20 +91,21 @@ void parse(pmt::pmt_t msg) {
 			break;
 		case 1:
 			dout << " (CONTROL)" << std::endl;
-			parse_control((char*)h, data_len);
+			out_frame += parse_control((char*)h, data_len);
 			break;
 
 		case 2:
 			dout << " (DATA)" << std::endl;
-			parse_data((char*)h, data_len);
+			out_frame += parse_data((char*)h, data_len);
 			break;
 
 		default:
 			dout << " (unknown)" << std::endl;
+			out_frame += " (unknown)";
 			break;
 	}
 
-        write_file(std::string("/tmp/CARLOS_SUCKS"), out_frame);
+        write_file(std::string("/tmp/out_frames"), out_frame);
 
 	char *frame = (char*)pmt::blob_data(msg);
 
@@ -114,6 +116,10 @@ void parse(pmt::pmt_t msg) {
 	} else if((((h->frame_control) >> 2) & 63) == 34) {
 		print_ascii(frame + 26, data_len - 26);
 	}
+}
+
+void set_frequency(double freq) {
+	d_freq = freq;
 }
 
 void write_file(std::string name, std::string content) {
@@ -133,7 +139,7 @@ std::string parse_management(char *buf, int length) {
 
 	dout << "Subtype: ";
         std::string type;
-        std::string ssid;
+        std::string ssid = "UNKNOWN";
 	switch(((h->frame_control) >> 4) & 0xf) {
 		case 0:
                         type = "Association Request";
@@ -223,7 +229,7 @@ std::string parse_management(char *buf, int length) {
         std::string mac_one = get_mac_address(h->addr1, true);
         std::string mac_two = get_mac_address(h->addr2, true);
         std::string mac_thr = get_mac_address(h->addr3, true);
-	std::string ret_str = "Subtype: " + type + ", seq nr: " + seq + ", mac 1: " + mac_one + ", mac 2: " + mac_two + ", mac 3: " + mac_thr;
+	std::string ret_str = "Subtype: " + type + ", SSID: " + ssid + ", seq nr: " + seq + ", mac 1: " + mac_one + ", mac 2: " + mac_two + ", mac 3: " + mac_thr + ", freq: " + std::to_string(d_freq/1e9);
 	return ret_str;
 
 
@@ -237,62 +243,79 @@ std::string parse_management(char *buf, int length) {
 }
 
 
-void parse_data(char *buf, int length) {
+std::string parse_data(char *buf, int length) {
 	mac_header* h = (mac_header*)buf;
 	if(length < 24) {
 		dout << "too short for a data frame" << std::endl;
-		return;
+		return "Too Short!";
 	}
 
 	dout << "Subtype: ";
+        std::string type;
 	switch(((h->frame_control) >> 4) & 0xf) {
 		case 0:
 			dout << "Data";
+			type = "Data";
 			break;
 		case 1:
 			dout << "Data + CF-ACK";
+			type = "Data + CF-ACK";
 			break;
 		case 2:
 			dout << "Data + CR-Poll";
+			type = "Data + CR-Poll";
 			break;
 		case 3:
 			dout << "Data + CF-ACK + CF-Poll";
+			type = "Data + CR-Poll";
 			break;
 		case 4:
 			dout << "Null";
+			type = "Null";
 			break;
 		case 5:
 			dout << "CF-ACK";
+			type = "CF-ACK";
 			break;
 		case 6:
 			dout << "CF-Poll";
+			type = "CF-Poll";
 			break;
 		case 7:
 			dout << "CF-ACK + CF-Poll";
+			type = "CF-ACK + CF-Poll";
 			break;
 		case 8:
 			dout << "QoS Data";
+			type = "QoS Data";
 			break;
 		case 9:
 			dout << "QoS Data + CF-ACK";
+			type = "QoS Data + CF-ACK";
 			break;
 		case 10:
 			dout << "QoS Data + CF-Poll";
+			type = "QoS Data + CF-Poll";
 			break;
 		case 11:
 			dout << "QoS Data + CF-ACK + CF-Poll";
+			type = "QoS Data + CF-ACK + CF-Poll";
 			break;
 		case 12:
 			dout << "QoS Null";
+			type = "QoS Null";
 			break;
 		case 13:
 			dout << "Reserved";
+			type = "Reserved";
 			break;
 		case 14:
 			dout << "QoS CF-Poll";
+			type = "QoS CF-Poll";
 			break;
 		case 15:
 			dout << "QoS CF-ACK + CF-Poll";
+			type = "QoS CF-ACK + CF-Poll";
 			break;
 		default:
 			break;
@@ -322,42 +345,60 @@ void parse_data(char *buf, int length) {
 	// publish FER estimate
 	pmt::pmt_t pdu = pmt::make_f32vector(lost_frames + 1, fer * 100);
 	message_port_pub(pmt::mp("fer"), pmt::cons( pmt::PMT_NIL, pdu ));
+
+	std::string seq = std::to_string(seq_no);
+        std::string mac_one = get_mac_address(h->addr1, true);
+        std::string mac_two = get_mac_address(h->addr2, true);
+        std::string mac_thr = get_mac_address(h->addr3, true);
+	std::string ret_str = "Subtype: " + type + ", SSID: N/A" + ", seq nr: " + seq + ", mac 1: " + mac_one + ", mac 2: " + mac_two + ", mac 3: " + mac_thr + ", freq: " + std::to_string(d_freq/1e9);
+	return ret_str;
 }
 
-void parse_control(char *buf, int length) {
+std::string parse_control(char *buf, int length) {
 	mac_header* h = (mac_header*)buf;
 
 	dout << "Subtype: ";
+        std::string type;
 	switch(((h->frame_control) >> 4) & 0xf) {
 		case 7:
 			dout << "Control Wrapper";
+			type = "Control Wrapper";
 			break;
 		case 8:
 			dout << "Block ACK Requrest";
+			type = "Block ACK Requrest";
 			break;
 		case 9:
 			dout << "Block ACK";
+			type ="Block ACK";
 			break;
 		case 10:
 			dout << "PS Poll";
+			type ="PS Poll";
 			break;
 		case 11:
 			dout << "RTS";
+			type ="RTS";
 			break;
 		case 12:
 			dout << "CTS";
+			type ="CTS";
 			break;
 		case 13:
 			dout << "ACK";
+			type ="ACK";
 			break;
 		case 14:
 			dout << "CF-End";
+			type ="CF-End";
 			break;
 		case 15:
 			dout << "CF-End + CF-ACK";
+			type ="CF-End + CF-ACK";
 			break;
 		default:
 			dout << "Reserved";
+			type ="Reserved";
 			break;
 	}
 	dout << std::endl;
@@ -366,6 +407,12 @@ void parse_control(char *buf, int length) {
 	print_mac_address(h->addr1, true);
 	dout << "TA: ";
 	print_mac_address(h->addr2, true);
+
+        std::string mac_one = get_mac_address(h->addr1, true);
+        std::string mac_two = get_mac_address(h->addr2, true);
+        /* std::string mac_thr = get_mac_address(h->addr3, true); */
+	std::string ret_str = "Subtype: " + type + ", SSID: N/A" + ", seq nr: " + "CTL" + ", mac 1: " + mac_one + ", mac 2: " + mac_two + ", mac 3: " + "XX:XX:XX:XX:XX:XX" + ", freq: " + std::to_string(d_freq/1e9);
+	return ret_str;
 
 }
 
@@ -419,12 +466,14 @@ void print_ascii(char* buf, int length) {
 private:
 	bool d_log;
 	bool d_debug;
+	double d_freq;
 	int d_last_seq_no;
 };
 
+parse_mac::
 parse_mac::sptr
-parse_mac::make(bool log, bool debug) {
-	return gnuradio::get_initial_sptr(new parse_mac_impl(log, debug));
+parse_mac::make(double freq, bool log, bool debug) {
+	return gnuradio::get_initial_sptr(new parse_mac_impl(freq, log, debug));
 }
 
 

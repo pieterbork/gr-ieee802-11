@@ -28,8 +28,8 @@ class IEEE802_11_API parse_mac : virtual public block
 public:
 
 	typedef boost::shared_ptr<parse_mac> sptr;
-	static sptr make(bool log = false, bool debug = false);
-
+	static sptr make(double freq, bool log = false, bool debug = false);
+	virtual void set_frequency(double freq) = 0;
 };
 
 } // namespace ieee802_11
